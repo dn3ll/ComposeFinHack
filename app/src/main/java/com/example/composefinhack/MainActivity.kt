@@ -1,6 +1,7 @@
 package com.example.composefinhack
 
 import android.R.attr.fontWeight
+import android.R.attr.name
 import android.R.attr.singleLine
 import android.R.attr.text
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -8,17 +9,20 @@ import androidx.compose.ui.text.input.VisualTransformation
 
 
 import android.os.Bundle
+import android.text.Layout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Event
@@ -55,6 +59,7 @@ import com.example.composefinhack.ui.theme.ButtonBlue
 import com.example.composefinhack.ui.theme.TextColor
 import com.example.composefinhack.ui.theme.TopPanelPurple
 import androidx.compose.ui.res.vectorResource
+import androidx.navigation.NavController
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -68,27 +73,45 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-sealed class Screen(val route: String, val label: String, val icon: ImageVector) {
+sealed class Screen(
+    val route: String,
+    val label: String = route,
+    val icon: ImageVector? = null
+) {
     object Welcome : Screen("welcome", "Welcome", Icons.Default.Home)
     object Feed : Screen("feed", "Лента", Icons.Default.Home)
     object Events : Screen("events", "Ивенты", Icons.Default.Event)
     object Subscriptions : Screen("subscriptions", "Подписки", Icons.Default.Subscriptions)
     object Profile : Screen("profile", "Профиль", Icons.Default.Person)
+
+    // Для экранов, которые не отображаются в bottom bar, иконку можно не указывать
+    object Anketa : Screen("anketa", "Анкета")
+    object Education : Screen("education", "Образование")
 }
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
 
-
-    val bottomBarRoutes = listOf(Screen.Feed.route, Screen.Events.route, Screen.Subscriptions.route, Screen.Profile.route)
+    val bottomBarRoutes = listOf(
+        Screen.Feed.route,
+        Screen.Events.route,
+        Screen.Subscriptions.route,
+        Screen.Profile.route
+    )
 
     Scaffold(
         bottomBar = {
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-            if (currentRoute in bottomBarRoutes) {
-                BottomNavigationBar(navController = navController, currentDestination = navBackStackEntry?.destination)
+            val showBottomBar = currentRoute in bottomBarRoutes || currentRoute == Screen.Education.route
+
+            if (showBottomBar) {
+                BottomNavigationBar(
+                    navController = navController,
+                    currentDestination = navBackStackEntry?.destination,
+                    activeRoute = if (currentRoute == Screen.Education.route) Screen.Profile.route else currentRoute
+                )
             }
         }
     ) { innerPadding ->
@@ -97,20 +120,24 @@ fun AppNavigation() {
             startDestination = Screen.Welcome.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Screen.Welcome.route) {
-                WelcomeScreen(navController)
-            }
+            composable(Screen.Welcome.route) { WelcomeScreen(navController) }
 
             composable(Screen.Feed.route) { Feed() }
             composable(Screen.Events.route) { Events() }
             composable(Screen.Subscriptions.route) { Subscriptions() }
-            composable(Screen.Profile.route) { Profile() }
+
+
+            composable(Screen.Profile.route) { Profile(navController) }
+
+            composable(Screen.Education.route) { Education(navController) }
         }
     }
 }
 
+
 @Composable
-fun BottomNavigationBar(navController: NavHostController, currentDestination: NavDestination?) {
+fun BottomNavigationBar(navController: NavHostController, currentDestination: NavDestination?,
+                        activeRoute: String? = currentDestination?.route) {
     val items = listOf(Screen.Feed, Screen.Events, Screen.Subscriptions, Screen.Profile)
 
     NavigationBar {
@@ -118,7 +145,7 @@ fun BottomNavigationBar(navController: NavHostController, currentDestination: Na
             val selected = currentDestination?.route == item.route
 
             NavigationBarItem(
-                icon = { Icon(item.icon, contentDescription = item.label) },
+                icon = { item.icon?.let { Icon(it, contentDescription = item.label) } },
                 label = { Text(item.label) },
                 selected = selected,
                 onClick = {
@@ -148,20 +175,20 @@ fun WelcomeScreen(navController: NavHostController) {
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .background(BgOrange)
+                    .background(BgGrey)
             ) {
                 Column(modifier = Modifier.align(Alignment.BottomCenter)
                     .padding(bottom = 180.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally)
                 {
-                    Text(text = "Cоздай свой",
+                    Text(text = "Введите ваши",
                         fontSize = 30.sp, textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Bold, color = TextColor)
-                    Text(text = "аккаунт",
+                        fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text(text = "данные",
                         fontSize = 30.sp, textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Bold, color = TextColor)
-                    Text(text = "Введи свой email и пароль", color = TextColor)
+                        fontWeight = FontWeight.Bold, color = Color.Black)
+                    Text(text = "email и пароль", color = TextColor)
 
                 }
 
@@ -181,7 +208,7 @@ fun WelcomeScreen(navController: NavHostController) {
             .height(300.dp)
             .align(Alignment.Center)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color.White)
+            .background(BgGrey)
         ) {
             Column(
                 modifier = Modifier
@@ -242,7 +269,7 @@ fun WelcomeScreen(navController: NavHostController) {
                         .fillMaxWidth()
                         .height(60.dp),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ButtonBlue)
+                    colors = ButtonDefaults.buttonColors(containerColor = BgOrange)
                 ) {
                     Text("Войти", fontSize = 17.sp)
                 }
@@ -280,11 +307,37 @@ fun Feed() {
     }
 }
 
+@Preview
 @Composable
 fun Events() {
-    Surface(modifier = Modifier.fillMaxSize()) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Text("Тут типо ивенты", fontSize = 28.sp)
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .background(TopPanelPurple)
+            ) {
+                Column(modifier=Modifier.align(Alignment.BottomStart))
+                {
+                    Text(
+                        text = "КУДА ПОЙТИ\nПРОКАЧАТЬСЯ",
+                        modifier = Modifier
+                            .padding(start = 20.dp, bottom = 30.dp),
+                        fontSize = 35.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                }
+
+            }
         }
     }
 }
@@ -298,105 +351,399 @@ fun Subscriptions() {
     }
 }
 
-@Preview
+
 @Composable
-fun Profile() {
+fun Profile(navController: NavController) {
     var university = "НИТУ МИСИС"
     var age = 20
-    var aboutMe = "Студент первого курса\nпобеждал на 20 хакатонах"
+    var aboutMe = "Призер олимпиады по физике"
+    var name = "СОПРАНО"
+    var surname = "АНАТОЛИЙ СЕРГЕЕВИЧ"
 
-    Box(modifier = Modifier.fillMaxSize())
-    {
-        Column(){
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-                .background(TopPanelPurple))
-            {
+    // Примеры тегов и XP (можешь менять)
+    val tags = listOf("Python", "SQL", "Робототехника", "UI/UX", "ИИ")
+    val xpList = listOf(
+        "Python" to 0.9f,
+        "SQL" to 0.75f,
+        "Golang" to 0.5f,
+        "Docker" to 0.65f
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()) // <- тут включаем скролл
+        ) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .background(TopPanelPurple)
+            ) {
                 Text(
                     text = "АНКЕТА",
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 20.dp, bottom = 65.dp),
-                    fontSize =35.sp,
+                        .padding(start = 20.dp, bottom = 30.dp),
+                    fontSize = 35.sp,
                     fontWeight = FontWeight.Bold
                 )
-
             }
 
-            Box(modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                   .background(BgGrey))
-            {
-                Column(modifier = Modifier.fillMaxSize()
-                    .padding(top = 20.dp))
-                {
-                    Row(modifier = Modifier
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(BgGrey)
+            ) {
+                Column(
+                    modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp))
-                        {
-                            Image(
-                                painter = painterResource(id = R.drawable.anketa),
-                                contentDescription = "Первая картинка",
-                                modifier = Modifier
-                                    .width(250.dp)
-                                    .height(140.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            )
+                        .padding(top = 20.dp, bottom = 40.dp)
+                ) {
 
-                            Image(
-                                painter = painterResource(id = R.drawable.education),
-                                contentDescription = "Вторая картинка",
-                                modifier = Modifier
-                                    .width(250.dp)
-                                    .height(140.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                            )
-                        }
-                        Box(modifier = Modifier.fillMaxSize()
-                        .padding(top=30.dp, start = 20.dp, end = 20.dp, bottom = 40.dp)
-                        .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-
-                        Row(modifier = Modifier.padding(top=20.dp, start = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Image(
-                                painter = painterResource(id = R.drawable.avatar),
-                                contentDescription = "Аватарка",
-                                modifier = Modifier
-                                    .width(150.dp)
-                                    .height(185.dp)
-                                    .clip(RoundedCornerShape(12.dp)
+                        Image(
+                            painter = painterResource(id = R.drawable.anketa),
+                            contentDescription = "Первая картинка",
+                            modifier = Modifier
+                                .width(250.dp)
+                                .height(140.dp)
+                                .clickable {
+                                    navController.navigate(Screen.Profile.route)
+                                }
+                                .clip(RoundedCornerShape(12.dp)
                                     )
+                        )
+
+                        Image(
+                            painter = painterResource(id = R.drawable.education),
+                            contentDescription = "Вторая картинка",
+                            modifier = Modifier
+                                .width(250.dp)
+                                .height(140.dp)
+                                .clickable {
+                                    navController.navigate(Screen.Education.route)
+                                }
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    }
+
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 30.dp, start = 20.dp, end = 20.dp)
+                            .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .padding(bottom = 20.dp)
+                    ) {
+                        Column {
+                            Row(
+                                modifier = Modifier
+                                    .padding(top = 20.dp, start = 20.dp, end = 20.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.avatar),
+                                    contentDescription = "Аватарка",
+                                    modifier = Modifier
+                                        .width(150.dp)
+                                        .height(185.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(text = "Образование", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = university, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(text = "Возраст", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = age.toString(), fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(text = "Опыт", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = aboutMe, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                }
+                            }
+
+
+                            Text(
+                                text = name,
+                                fontSize = 28.sp,
+                                modifier = Modifier.padding(start = 20.dp, top = 12.dp),
+                                fontWeight = FontWeight.Bold
                             )
-                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)
-                            ){
-                                Text(text = "Образование", fontSize = 25.sp, fontWeight = FontWeight.Bold )
-                                Text(text = university, fontSize = 15.sp, fontWeight = FontWeight.Bold )
-                                Text(text = "Возраст", fontSize = 25.sp, fontWeight = FontWeight.Bold )
-                                Text(text = age.toString(), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                                Text(text = "Опыт", fontSize = 25.sp, fontWeight = FontWeight.Bold )
-                                Text(text = aboutMe, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Text(
+                                text = surname,
+                                fontSize = 28.sp,
+                                modifier = Modifier.padding(start = 20.dp, top = 3.dp),
+                                fontWeight = FontWeight.Bold
+                            )
+
+
+                            Text(
+                                text = "// КОМПЕТЕНЦИИ",
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(start = 20.dp, top = 14.dp)
+                            )
+
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                tags.forEach { tag ->
+                                    Box(
+                                        modifier = Modifier
+                                            .height(34.dp)
+                                            .border(
+                                                width = 1.dp,
+                                                color = Color.Black,
+                                                shape = RoundedCornerShape(20.dp)
+                                            )
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(Color.Transparent)
+                                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(text = tag, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                                    }
+                                }
+                            }
+
+
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "// XP",
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(start = 20.dp, top = 8.dp)
+                            )
+
+                            Column(modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp)) {
+                                xpList.forEach { (label, progress) ->
+                                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(text = label, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                            Text(text = "${(progress * 100).toInt()}%", fontSize = 14.sp)
+                                        }
+
+                                        Spacer(modifier = Modifier.height(6.dp))
+
+
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(12.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color(0xFFE0E0E0))
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth(progress)
+                                                    .height(12.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(TopPanelPurple)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun Education(navController: NavController) {
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                    .background(TopPanelPurple)
+            ) {
+                Text(
+                    text = "ОБРАЗОВАНИЕ",
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 20.dp, bottom = 30.dp),
+                    fontSize = 35.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(BgGrey)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 20.dp, bottom = 40.dp)
+                ) {
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.anketa),
+                            contentDescription = "Первая картинка",
+                            modifier = Modifier
+                                .width(250.dp)
+                                .height(140.dp)
+                                .clickable {
+                                    navController.navigate(Screen.Profile.route)
+                                }
+                                .clip(RoundedCornerShape(12.dp)
+                                )
+                        )
+
+                        Image(
+                            painter = painterResource(id = R.drawable.education),
+                            contentDescription = "Вторая картинка",
+                            modifier = Modifier
+                                .width(250.dp)
+                                .height(140.dp)
+                                .clickable {
+                                    navController.navigate(Screen.Education.route)
+                                }
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    }
+
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 30.dp, start = 20.dp, end = 20.dp)
+                            .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.White)
+                            .padding(bottom = 20.dp)
+                    ) {
+                        Column {
+                            Text(
+                                text = "// ПРОЙДЕННЫЕ КУРСЫ",
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(start = 20.dp, top = 14.dp)
+                            )
+
+                            Row (Modifier.padding(top=5.dp)){
+                                Image(
+                                    painter = painterResource(id = R.drawable.edpic1),
+                                    contentDescription = "Первая картинка",
+                                    modifier = Modifier
+                                        .width(180.dp)
+                                        .height(100.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+
+                                Image(
+                                    painter = painterResource(id = R.drawable.edpic2),
+                                    contentDescription = "Первая картинка",
+                                    modifier = Modifier
+                                        .width(180.dp)
+                                        .height(100.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+                            }
+
+                            Row (Modifier.padding(top=5.dp)){
+                                Image(
+                                    painter = painterResource(id = R.drawable.edpic3),
+                                    contentDescription = "Первая картинка",
+                                    modifier = Modifier
+                                        .width(180.dp)
+                                        .height(100.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+
+                                Image(
+                                    painter = painterResource(id = R.drawable.edpic4),
+                                    contentDescription = "Первая картинка",
+                                    modifier = Modifier
+                                        .width(180.dp)
+                                        .height(100.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                )
+                            }
+
+                            Text(
+                                text = "// ХОЧУ ИЗУЧИТЬ",
+                                fontSize = 20.sp,
+                                modifier = Modifier.padding(start = 20.dp, top = 14.dp)
+                            )
+
+                            Row (Modifier.padding(top=5.dp)
+                                .align(Alignment.CenterHorizontally),
+                                ){
+                                Image(
+                                    painter = painterResource(id = R.drawable.edpic21),
+                                    contentDescription = "Первая картинка",
+                                    modifier = Modifier
+                                        .width(140.dp)
+                                        .height(120.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .padding(end=10.dp)
+                                )
+
+                                Image(
+                                    painter = painterResource(id = R.drawable.edpic22),
+                                    contentDescription = "Первая картинка",
+                                    modifier = Modifier
+                                        .width(140.dp)
+                                        .height(120.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .padding(end=10.dp)
+                                )
+
                             }
 
                         }
 
 
-
-
                     }
-
-
                 }
             }
         }
     }
-
 }
 
 
