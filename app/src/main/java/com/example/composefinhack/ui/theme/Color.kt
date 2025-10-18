@@ -17,3 +17,5 @@ val BgOrange = Color(0xFFFC8F34)
 val BgGrey = Color(0xFFf6f8fa)
 
 val TextColor = Color(0xFFeeeeee)
+
+val TopPanelPurple = Color(0xFFcabbff)
