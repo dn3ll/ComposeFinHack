@@ -303,7 +303,8 @@ fun Subscriptions() {
 fun Profile() {
     var university = "НИТУ МИСИС"
     var age = 20
-    var aboutMe = "Студент первого курса, побеждал на 20 хакатонах"
+    var aboutMe = "Студент первого курса\nпобеждал на 20 хакатонах"
+
     Box(modifier = Modifier.fillMaxSize())
     {
         Column(){
@@ -355,7 +356,7 @@ fun Profile() {
                                     .clip(RoundedCornerShape(12.dp))
                             )
                         }
-                    Box(modifier = Modifier.fillMaxSize()
+                        Box(modifier = Modifier.fillMaxSize()
                         .padding(top=30.dp, start = 20.dp, end = 20.dp, bottom = 40.dp)
                         .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
                         .clip(RoundedCornerShape(12.dp))
@@ -373,9 +374,14 @@ fun Profile() {
                                     .clip(RoundedCornerShape(12.dp)
                                     )
                             )
-                            Column(){
+                            Column(verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ){
                                 Text(text = "Образование", fontSize = 25.sp, fontWeight = FontWeight.Bold )
-                                Text(text = "НИТУ МИСИС", fontSize = 15.sp, fontWeight = FontWeight.Bold )
+                                Text(text = university, fontSize = 15.sp, fontWeight = FontWeight.Bold )
+                                Text(text = "Возраст", fontSize = 25.sp, fontWeight = FontWeight.Bold )
+                                Text(text = age.toString(), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                Text(text = "Опыт", fontSize = 25.sp, fontWeight = FontWeight.Bold )
+                                Text(text = aboutMe, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                             }
 
                         }
