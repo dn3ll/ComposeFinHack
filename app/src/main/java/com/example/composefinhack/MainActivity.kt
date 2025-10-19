@@ -1,15 +1,24 @@
 package com.example.composefinhack
 
-import android.R.attr.fontWeight
-import android.R.attr.name
-import android.R.attr.singleLine
-import android.R.attr.text
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.platform.LocalContext
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import android.content.Context
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 
 import android.os.Bundle
-import android.text.Layout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,6 +27,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +42,9 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,6 +87,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// Simple user storage via DataStore (demo only; don't store passwords like this in production)
+private val Context.userDataStore by preferencesDataStore(name = "user_prefs")
+private val KEY_FULL_NAME = stringPreferencesKey("full_name")
+private val KEY_PHONE = stringPreferencesKey("phone")
+
 sealed class Screen(
     val route: String,
     val label: String = route,
@@ -87,6 +106,7 @@ sealed class Screen(
     // Для экранов, которые не отображаются в bottom bar, иконку можно не указывать
     object Anketa : Screen("anketa", "Анкета")
     object Education : Screen("education", "Образование")
+    object Registration : Screen("registration", "Регистрация")
 }
 
 @Composable
@@ -121,6 +141,7 @@ fun AppNavigation() {
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Welcome.route) { WelcomeScreen(navController) }
+            composable(Screen.Registration.route) { RegistrationScreen(navController) }
 
             composable(Screen.Feed.route) { Feed() }
             composable(Screen.Events.route) { Events() }
@@ -278,7 +299,7 @@ fun WelcomeScreen(navController: NavHostController) {
                 ClickableText(
                     text = AnnotatedString("Зарегистрироваться?"),
                     onClick = {
-                        // TODO: переход на восстановление пароля
+                        navController.navigate(Screen.Registration.route)
                     },
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp),
                     style = androidx.compose.ui.text.TextStyle(
@@ -300,9 +321,279 @@ fun WelcomeScreen(navController: NavHostController) {
 
 @Composable
 fun Feed() {
+    // Tab state: 0 – Подписки, 1 – Мои интересы
+    var selectedTab by remember { mutableStateOf(0) }
+
+    val posts = remember {
+        listOf(
+            FeedPost(
+                id = "1",
+                title = "«МИКРОН» — открывает двери для студентов!",
+                subtitle = "Экскурсия по крупнейшему микроэлектронному производству России, знакомство с технологиями чипов и процессом фотолитографии.",
+                category = "#Экскурсия",
+                date = "24.10",
+                skills = "python, scratch",
+                difficulty = 2,
+                imageRes = R.drawable.hack1
+            ),
+            FeedPost(
+                id = "2",
+                title = "«Умные лифты будущего»",
+                subtitle = "Приглашаем проектировщиков, архитекторов и разработчиков на эксклюзивный воркшоп о трансформации лифтовой индустрии.",
+                category = "#Воркшоп",
+                date = "03.12",
+                skills = "Основы программирования, Arduino",
+                difficulty = 3,
+                imageRes = R.drawable.hack2
+            ),
+            FeedPost(
+                id = "3",
+                title = "Кабельный завод «Спецкабель»",
+                subtitle = "Погружение в мир современного производства: знакомство с работой инженеров и технологов и тем, как создаются сложные электроматериалы.",
+                category = "#Экскурсия",
+                date = "20.12",
+                skills = "python, scratch",
+                difficulty = 2,
+                imageRes = R.drawable.banner
+            ),
+            FeedPost(
+                id = "4",
+                title = "«Умная открытка» с чипом RFID/NFC",
+                subtitle = "Соберём интерактивную открытку, которая с помощью чипа передаст цифровое сообщение (видео, поздравление, ссылку) на смартфон.",
+                category = "#Проект",
+                date = "10.10",
+                skills = "Основы программирования",
+                difficulty = 3,
+                imageRes = R.drawable.internship
+            )
+        )
+    }
+
+    val communities = remember {
+        mutableStateListOf(
+            Community(
+                id = "c1",
+                name = "Предприниматели",
+                followers = "1.2M Followers",
+                avatarRes = R.drawable.news_author1,
+                isFollowing = true
+            ),
+            Community(
+                id = "c2",
+                name = "Хакатоны",
+                followers = "959K Followers",
+                avatarRes = R.drawable.news_author2,
+                isFollowing = false
+            ),
+            Community(
+                id = "c3",
+                name = "Моспром",
+                followers = "325K Followers",
+                avatarRes = R.drawable.news_author3,
+                isFollowing = true
+            ),
+            Community(
+                id = "c4",
+                name = "Микрон",
+                followers = "21K Followers",
+                avatarRes = R.drawable.news_author4,
+                isFollowing = false
+            ),
+            Community(
+                id = "c5",
+                name = "IT",
+                followers = "18K Followers",
+                avatarRes = R.drawable.news_author5,
+                isFollowing = false
+            ),
+            Community(
+                id = "c6",
+                name = "MSN",
+                followers = "15K Followers",
+                avatarRes = R.drawable.news_author6,
+                isFollowing = false
+            )
+        )
+    }
+
+    // На всякий случай фон как на других экранах
     Surface(modifier = Modifier.fillMaxSize()) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Text("Тут типо лента", fontSize = 28.sp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgGrey)
+        ) {
+            item { FeedHeader(onAddClick = { /* TODO: добавить создание поста */ }) }
+            item { FeedTabs(selectedTab = selectedTab, onSelect = { selectedTab = it }) }
+
+            if (selectedTab == 0) {
+                items(posts, key = { it.id }) { post ->
+                    FeedCard(post = post)
+                }
+            } else {
+                items(communities, key = { it.id }) { community ->
+                    CommunityCard(
+                        community = community,
+                        onToggleFollow = {
+                            val idx = communities.indexOfFirst { it.id == community.id }
+                            if (idx != -1) {
+                                val current = communities[idx]
+                                communities[idx] = current.copy(isFollowing = !current.isFollowing)
+                            }
+                        }
+                    )
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun FeedHeader(onAddClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+            .background(TopPanelPurple)
+    ) {
+        // Кнопка «+» в правом верхнем углу
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White)
+                .clickable { onAddClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = "Добавить пост")
+        }
+
+        Text(
+            text = "ЛЕНТА НОВОСТЕЙ",
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 20.dp, bottom = 30.dp),
+            fontSize = 35.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+@Composable
+private fun FeedTabs(selectedTab: Int, onSelect: (Int) -> Unit) {
+    // Простые «сегменты» под заголовком: Подписки / Мои интересы
+    val selectedColor = Color(0xFFDDEB87)  // мягкий зелёный, как на макете
+    val unselectedColor = Color(0xFFF1F2F6)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BgGrey)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (selectedTab == 0) selectedColor else unselectedColor)
+                .clickable { onSelect(0) },
+            contentAlignment = Alignment.Center
+        ) { Text("Подписки", fontSize = 16.sp, fontWeight = if (selectedTab == 0) FontWeight.SemiBold else FontWeight.Normal) }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (selectedTab == 1) selectedColor else unselectedColor)
+                .clickable { onSelect(1) },
+            contentAlignment = Alignment.Center
+        ) { Text("Мои интересы", fontSize = 16.sp, fontWeight = if (selectedTab == 1) FontWeight.SemiBold else FontWeight.Normal) }
+    }
+}
+
+private data class FeedPost(
+    val id: String,
+    val title: String,
+    val subtitle: String,
+    val category: String,
+    val date: String,
+    val skills: String,
+    val difficulty: Int, // 0..5
+    val imageRes: Int
+)
+
+@Composable
+private fun FeedCard(post: FeedPost) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Верхняя строка: слева картинка, справа дата
+            Row(modifier = Modifier.fillMaxWidth()) {
+                Image(
+                    painter = painterResource(id = post.imageRes),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(92.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    // Категория в виде плашки
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(BgOrange)
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) { Text(post.category, color = Color.White, fontSize = 12.sp) }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(text = post.title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(text = post.subtitle, fontSize = 13.sp)
+                }
+
+                Text(
+                    text = post.date,
+                    fontSize = 14.sp,
+                    modifier = Modifier.align(Alignment.Top),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(text = "Навыки: ${post.skills}", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Spacer(modifier = Modifier.height(2.dp))
+            val stars = "★".repeat(post.difficulty.coerceIn(0, 5)) + "☆".repeat(5 - post.difficulty.coerceIn(0, 5))
+            Text(text = "Уровень сложности: $stars", fontSize = 14.sp)
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                Button(
+                    onClick = { /* TODO: регистрация */ },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BgOrange)
+                ) {
+                    Text("Зарегистрироваться", fontSize = 14.sp)
+                }
+            }
         }
     }
 }
@@ -310,14 +601,10 @@ fun Feed() {
 @Preview
 @Composable
 fun Events() {
+    var query by remember { mutableStateOf("") }
+
     Box(modifier = Modifier.fillMaxSize()) {
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-
+        Column(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -325,22 +612,107 @@ fun Events() {
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .background(TopPanelPurple)
             ) {
-                Column(modifier=Modifier.align(Alignment.BottomStart))
-                {
+                Column(modifier = Modifier.align(Alignment.BottomStart)) {
                     Text(
-                        text = "КУДА ПОЙТИ\nПРОКАЧАТЬСЯ",
+                        text = "КУДА ПОЙТИ",
                         modifier = Modifier
-                            .padding(start = 20.dp, bottom = 30.dp),
+                            .padding(start = 10.dp, bottom = 3.dp),
                         fontSize = 35.sp,
                         fontWeight = FontWeight.Bold
                     )
 
-                }
+                    Text(
+                        text = "ПРОКАЧАТЬСЯ",
+                        modifier = Modifier
+                            .padding(start = 10.dp, bottom = 3.dp),
+                        fontSize = 35.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
+                    TextField(
+                        value = query, // <-- здесь должна быть та же переменная
+                        onValueChange = { query = it },
+                        placeholder = { Text("Найти событие или место") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
+            }
+            Box(modifier = Modifier.fillMaxSize()
+                .background(BgGrey))
+            {
+                Column(){
+                    Text(
+                        text = "// СТАЖИРОВКИ",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 20.dp, top = 18.dp)
+                    )
+
+                    Image(
+                        painter = painterResource(id = R.drawable.internship),
+                        contentDescription = "Первая картинка",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(12.dp)
+                            )
+                    )
+
+                    Text(
+                        text = "// ХАКАТОНЫ",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 20.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, top=16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.hack1),
+                            contentDescription = "Первая картинка",
+                            modifier = Modifier
+                                .width(200.dp)
+                                .height(140.dp)
+
+                                .clip(RoundedCornerShape(12.dp)
+                                )
+                        )
+
+                        Image(
+                            painter = painterResource(id = R.drawable.hack2),
+                            contentDescription = "Вторая картинка",
+                            modifier = Modifier
+                                .width(160.dp)
+                                .height(140.dp)
+
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.banner),
+                        contentDescription = "Баннер",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(12.dp)
+                            )
+                    )
+
+                }
             }
         }
     }
 }
+
 
 @Composable
 fun Subscriptions() {
@@ -354,11 +726,14 @@ fun Subscriptions() {
 
 @Composable
 fun Profile(navController: NavController) {
+    val context = LocalContext.current
+    val fullName by context.userDataStore.data.map { it[KEY_FULL_NAME] ?: "СОПРАНО АНАТОЛИЙ СЕРГЕЕВИЧ" }.collectAsState(initial = "СОПРАНО АНАТОЛИЙ СЕРГЕЕВИЧ")
+    val phone by context.userDataStore.data.map { it[KEY_PHONE] ?: "" }.collectAsState(initial = "")
+    val name = fullName.substringBefore(' ')
+    val surname = fullName.substringAfter(' ', "")
     var university = "НИТУ МИСИС"
     var age = 20
     var aboutMe = "Призер олимпиады по физике"
-    var name = "СОПРАНО"
-    var surname = "АНАТОЛИЙ СЕРГЕЕВИЧ"
 
     // Примеры тегов и XP (можешь менять)
     val tags = listOf("Python", "SQL", "Робототехника", "UI/UX", "ИИ")
@@ -473,6 +848,9 @@ fun Profile(navController: NavController) {
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(text = "Опыт", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                     Text(text = aboutMe, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(text = "Телефон", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = phone, fontSize = 15.sp, fontWeight = FontWeight.Normal)
                                 }
                             }
 
@@ -749,3 +1127,164 @@ fun Education(navController: NavController) {
 
 
 
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun RegistrationScreen(navController: NavHostController) {
+    val context = LocalContext.current
+    var fullName by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    val isValid = fullName.isNotBlank() && phone.count { it.isDigit() } >= 10 && password.length >= 6
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Регистрация") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                }
+            )
+        }
+    ) { inner ->
+        Column(
+            modifier = Modifier
+                .padding(inner)
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedTextField(
+                value = fullName,
+                onValueChange = { fullName = it },
+                singleLine = true,
+                label = { Text("ФИО") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                singleLine = true,
+                label = { Text("Номер телефона") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = password,
+                onValueChange = { password = it },
+                singleLine = true,
+                label = { Text("Пароль") },
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Скрыть пароль" else "Показать пароль"
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    scope.launch {
+                        // Save to DataStore (not saving password here for security)
+                        context.userDataStore.edit { prefs ->
+                            prefs[KEY_FULL_NAME] = fullName
+                            prefs[KEY_PHONE] = phone
+                        }
+                        // Go to profile after successful registration
+                        navController.popBackStack()
+                        navController.navigate(Screen.Profile.route)
+                    }
+                },
+                enabled = isValid,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BgOrange)
+            ) {
+                Text("Зарегистрироваться", fontSize = 16.sp)
+            }
+        }
+    }
+}
+
+private data class Community(
+    val id: String,
+    val name: String,
+    val followers: String,
+    val avatarRes: Int,
+    val isFollowing: Boolean
+)
+
+@Composable
+private fun CommunityCard(
+    community: Community,
+    onToggleFollow: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(id = community.avatarRes),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = community.name, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(text = community.followers, fontSize = 14.sp, color = Color(0xFF7A7A7A))
+            }
+
+            if (community.isFollowing) {
+                Button(
+                    onClick = onToggleFollow,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BgOrange),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Text("Following")
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onToggleFollow,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, ButtonBlue),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ButtonBlue),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Icon(Icons.Filled.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Follow")
+                }
+            }
+        }
+    }
+}
