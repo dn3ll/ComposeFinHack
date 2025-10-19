@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Subscriptions
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.*
@@ -73,6 +74,7 @@ import com.example.composefinhack.ui.theme.ButtonBlue
 import com.example.composefinhack.ui.theme.TextColor
 import com.example.composefinhack.ui.theme.TopPanelPurple
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.NavController
 
 class MainActivity : ComponentActivity() {
@@ -716,9 +718,249 @@ fun Events() {
 
 @Composable
 fun Subscriptions() {
+    // 0 – От организаций, 1 – От пользователей
+    var selectedTab by remember { mutableStateOf(0) }
+    var query by remember { mutableStateOf("") }
+
+    // Данные клубов «От организаций»
+    val orgClubs = remember {
+        listOf(
+            Club(
+                id = "o1",
+                title = "Клуб робототехники",
+                from = "От Моспрома • 1,2 тыс. участников",
+                description = "Общение, обмен опытом и совместные проекты в сфере робототехники.",
+                tag = "#Роботы",
+                bannerRes = R.drawable.club_back1
+            ),
+            Club(
+                id = "o2",
+                title = "Клуб хакатонов",
+                from = "От АО Микрон • 3,2 тыс. участников",
+                description = "За 48 часов ребята разрабатывают решения для реальных задач микроэлектроники.",
+                tag = "#Кейсы",
+                bannerRes = R.drawable.club_back2
+            ),
+            Club(
+                id = "o3",
+                title = "Клуб ИИ",
+                from = "От АО Микрон • 3 тыс. участников",
+                description = "Тренды, воркшопы по Python и ML, реальные задачи компании.",
+                tag = "#ML",
+                bannerRes = R.drawable.club_back3
+            ),
+            Club(
+                id = "o4",
+                title = "Клуб биоинженерии",
+                from = "От НИИ БиоТех • 1,2 тыс. участников",
+                description = "Клуб для студентов и молодых учёных, интересующихся генетикой и клеточными технологиями.",
+                tag = "#Био",
+                bannerRes = R.drawable.club_back4
+            )
+        )
+    }
+
+    // Данные клубов «От пользователей» (примерные)
+    val userClubs = remember {
+        listOf(
+            Club(
+                id = "u1",
+                title = "Фуллстек-джедаи",
+                from = "От пользователей • 4,5 тыс. участников",
+                description = "Обмениваемся лайфхаками по Kotlin/JS/Go, делаем пет-проекты вместе.",
+                tag = "#Dev",
+                bannerRes = R.drawable.club_back2
+            ),
+            Club(
+                id = "u2",
+                title = "Дизайн & Продукт",
+                from = "От пользователей • 2,1 тыс. участников",
+                description = "UI/UX, motion, JTBD и метрики — практикуемся и ревьюим кейсы.",
+                tag = "#Design",
+                bannerRes = R.drawable.club_back1
+            )
+        )
+    }
+
+    val currentList = if (selectedTab == 0) orgClubs else userClubs
+    val filtered = remember(query, currentList) {
+        if (query.isBlank()) currentList else currentList.filter { it.title.contains(query, ignoreCase = true) || it.tag.contains(query, ignoreCase = true) }
+    }
+
     Surface(modifier = Modifier.fillMaxSize()) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-            Text("Тут типо подписки", fontSize = 28.sp)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BgGrey)
+        ) {
+            item {
+                SubscriptionsHeader(
+                    query = query,
+                    onQueryChange = { query = it },
+                    onAddClick = { /* TODO: создать клуб */ }
+                )
+            }
+            item { SubscriptionsTabs(selected = selectedTab, onSelect = { selectedTab = it }) }
+
+            items(filtered, key = { it.id }) { club ->
+                ClubCard(club = club, onOpen = { /* TODO: переход в карточку клуба */ })
+            }
+
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionsHeader(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onAddClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+            .background(TopPanelPurple)
+    ) {
+        // Кнопка «+» справа сверху
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(16.dp)
+                .size(48.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White)
+                .clickable { onAddClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = Icons.Filled.Add, contentDescription = "Создать клуб")
+        }
+
+        Column(modifier = Modifier.align(Alignment.BottomStart)) {
+            Text(
+                text = "КЛУБЫ",
+                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp),
+                fontSize = 35.sp,
+                fontWeight = FontWeight.Bold
+            )
+            TextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = { Text("Найти по тегу") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            )
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionsTabs(selected: Int, onSelect: (Int) -> Unit) {
+    val selectedColor = Color(0xFFDDEB87)
+    val unselectedColor = Color(0xFFF1F2F6)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(BgGrey)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (selected == 0) selectedColor else unselectedColor)
+                .clickable { onSelect(0) },
+            contentAlignment = Alignment.Center
+        ) { Text("От организаций", fontSize = 16.sp, fontWeight = if (selected == 0) FontWeight.SemiBold else FontWeight.Normal) }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (selected == 1) selectedColor else unselectedColor)
+                .clickable { onSelect(1) },
+            contentAlignment = Alignment.Center
+        ) { Text("От пользователей", fontSize = 16.sp, fontWeight = if (selected == 1) FontWeight.SemiBold else FontWeight.Normal) }
+    }
+}
+
+private data class Club(
+    val id: String,
+    val title: String,
+    val from: String,
+    val description: String,
+    val tag: String,
+    val bannerRes: Int
+)
+
+@Composable
+private fun ClubCard(
+    club: Club,
+    onOpen: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White)
+    ) {
+        Column {
+            Image(
+                painter = painterResource(id = club.bannerRes),
+                contentDescription = club.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(110.dp)
+                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+            )
+
+            Column(
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = club.title,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(ButtonBlue.copy(alpha = 0.15f))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) { Text(club.tag, color = ButtonBlue, fontSize = 12.sp) }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = club.from, fontSize = 16.sp, color = Color(0xFF5C5C5C))
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(text = club.description, fontSize = 14.sp)
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black)
+                            .clickable { onOpen() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(imageVector = Icons.Filled.ArrowForward, contentDescription = "Открыть", tint = Color.White)
+                    }
+                }
+            }
         }
     }
 }
