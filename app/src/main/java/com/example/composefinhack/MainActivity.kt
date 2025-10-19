@@ -2,6 +2,7 @@ package com.example.composefinhack
 
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.platform.LocalContext
 import androidx.datastore.preferences.preferencesDataStore
@@ -95,6 +96,10 @@ class MainActivity : ComponentActivity() {
 private val Context.userDataStore by preferencesDataStore(name = "user_prefs")
 private val KEY_FULL_NAME = stringPreferencesKey("full_name")
 private val KEY_PHONE = stringPreferencesKey("phone")
+private val KEY_EDUCATION = stringPreferencesKey("education")
+private val KEY_AGE = stringPreferencesKey("age")
+private val KEY_ABOUT = stringPreferencesKey("about")
+private val KEY_COMPETENCIES = stringPreferencesKey("competencies")
 
 sealed class Screen(
     val route: String,
@@ -1348,12 +1353,20 @@ fun Profile(navController: NavController) {
     val phone by context.userDataStore.data.map { it[KEY_PHONE] ?: "" }.collectAsState(initial = "")
     val name = fullName.substringBefore(' ')
     val surname = fullName.substringAfter(' ', "")
-    var university = "НИТУ МИСИС"
-    var age = 20
-    var aboutMe = "Призер олимпиады по физике"
 
-    // Примеры тегов и XP (можешь менять)
-    val tags = listOf("Python", "SQL", "Робототехника", "UI/UX", "ИИ")
+    // новые поля из DataStore
+    val education by context.userDataStore.data.map { it[KEY_EDUCATION] ?: "—" }.collectAsState(initial = "—")
+    val ageText by context.userDataStore.data.map { it[KEY_AGE] ?: "" }.collectAsState(initial = "")
+    val aboutMe by context.userDataStore.data.map { it[KEY_ABOUT] ?: "" }.collectAsState(initial = "")
+    val competenciesRaw by context.userDataStore.data.map { it[KEY_COMPETENCIES] ?: "" }.collectAsState(initial = "")
+
+    // Компетенции берем из регистрации (через запятую). Если пусто — оставим демо-набор.
+    val tags = if (competenciesRaw.isNotBlank())
+        competenciesRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    else
+        listOf("Python", "SQL", "Робототехника", "UI/UX", "ИИ")
+
+    // XP оставляем как демо
     val xpList = listOf(
         "Python" to 0.9f,
         "SQL" to 0.75f,
@@ -1458,13 +1471,13 @@ fun Profile(navController: NavController) {
 
                                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(text = "Образование", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                    Text(text = university, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                    Text(text = education, fontSize = 15.sp, fontWeight = FontWeight.Normal)
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(text = "Возраст", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                    Text(text = age.toString(), fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                    Text(text = if (ageText.isBlank()) "—" else ageText, fontSize = 15.sp, fontWeight = FontWeight.Normal)
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(text = "Опыт", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                                    Text(text = aboutMe, fontSize = 15.sp, fontWeight = FontWeight.Normal)
+                                    Text(text = if (aboutMe.isBlank()) "—" else aboutMe, fontSize = 15.sp, fontWeight = FontWeight.Normal)
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(text = "Телефон", fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                     Text(text = phone, fontSize = 15.sp, fontWeight = FontWeight.Normal)
@@ -1752,6 +1765,10 @@ fun RegistrationScreen(navController: NavHostController) {
     val context = LocalContext.current
     var fullName by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
+    var education by rememberSaveable { mutableStateOf("") }
+    var age by rememberSaveable { mutableStateOf("") }
+    var about by rememberSaveable { mutableStateOf("") }
+    var competencies by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -1779,9 +1796,19 @@ fun RegistrationScreen(navController: NavHostController) {
         ) {
             OutlinedTextField(
                 value = fullName,
-                onValueChange = { fullName = it },
+                onValueChange = { input ->
+                    // Разрешаем Unicode-буквы (включая кириллицу), пробелы, дефисы и апострофы
+                    val cleaned = input.filter { ch ->
+                        ch.isLetter() || ch == ' ' || ch == '-' || ch == '’' || ch == '\''
+                    }
+                    fullName = cleaned
+                },
                 singleLine = true,
                 label = { Text("ФИО") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    capitalization = KeyboardCapitalization.Words
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -1791,6 +1818,43 @@ fun RegistrationScreen(navController: NavHostController) {
                 singleLine = true,
                 label = { Text("Номер телефона") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = education,
+                onValueChange = { education = it },
+                singleLine = true,
+                label = { Text("Образование") },
+                placeholder = { Text("Например, НИТУ МИСИС") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = age,
+                onValueChange = { age = it.filter { ch -> ch.isDigit() }.take(3) },
+                singleLine = true,
+                label = { Text("Возраст") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = about,
+                onValueChange = { about = it },
+                label = { Text("О себе") },
+                placeholder = { Text("Коротко о себе") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+            )
+
+            OutlinedTextField(
+                value = competencies,
+                onValueChange = { competencies = it },
+                singleLine = false,
+                label = { Text("Компетенции") },
+                placeholder = { Text("Перечислите через запятую: Python, SQL, UI/UX") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -1818,6 +1882,10 @@ fun RegistrationScreen(navController: NavHostController) {
                         context.userDataStore.edit { prefs ->
                             prefs[KEY_FULL_NAME] = fullName
                             prefs[KEY_PHONE] = phone
+                            prefs[KEY_EDUCATION] = education
+                            prefs[KEY_AGE] = age
+                            prefs[KEY_ABOUT] = about
+                            prefs[KEY_COMPETENCIES] = competencies
                         }
                         // Go to profile after successful registration
                         navController.popBackStack()
