@@ -11,12 +11,14 @@ import android.content.Context
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.material3.ExperimentalMaterial3Api
-
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.material3.Slider
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -109,11 +111,62 @@ sealed class Screen(
     object Anketa : Screen("anketa", "Анкета")
     object Education : Screen("education", "Образование")
     object Registration : Screen("registration", "Регистрация")
+    object CreatePost : Screen("create_post", "Создать пост")
 }
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+
+    // Храним ленту постов на уровне навигации, чтобы экран создания мог добавлять новые записи
+    val feedPosts = remember {
+        mutableStateListOf(
+            FeedPost(
+                id = "1",
+                title = "«МИКРОН» — открывает двери для студентов!",
+                subtitle = "Экскурсия по крупнейшему микроэлектронному производству России, знакомство с технологиями чипов и процессом фотолитографии.",
+                category = "#Экскурсия",
+                date = "24.10",
+                skills = "python, scratch",
+                difficulty = 2,
+                imageRes = R.drawable.hack1,
+                from = "АО Микрон"
+            ),
+            FeedPost(
+                id = "2",
+                title = "«Умные лифты будущего»",
+                subtitle = "Приглашаем проектировщиков, архитекторов и разработчиков на эксклюзивный воркшоп о трансформации лифтовой индустрии.",
+                category = "#Воркшоп",
+                date = "03.12",
+                skills = "Основы программирования, Arduino",
+                difficulty = 3,
+                imageRes = R.drawable.hack2,
+                from = "LiftLab"
+            ),
+            FeedPost(
+                id = "3",
+                title = "Кабельный завод «Спецкабель»",
+                subtitle = "Погружение в мир современного производства: знакомство с работой инженеров и технологов и тем, как создаются сложные электроматериалы.",
+                category = "#Экскурсия",
+                date = "20.12",
+                skills = "python, scratch",
+                difficulty = 2,
+                imageRes = R.drawable.banner,
+                from = "Моспром"
+            ),
+            FeedPost(
+                id = "4",
+                title = "«Умная открытка» с чипом RFID/NFC",
+                subtitle = "Соберём интерактивную открытку, которая с помощью чипа передаст цифровое сообщение (видео, поздравление, ссылку) на смартфон.",
+                category = "#Проект",
+                date = "10.10",
+                skills = "Основы программирования",
+                difficulty = 3,
+                imageRes = R.drawable.internship,
+                from = "Хакатоны"
+            )
+        )
+    }
 
     val bottomBarRoutes = listOf(
         Screen.Feed.route,
@@ -145,14 +198,31 @@ fun AppNavigation() {
             composable(Screen.Welcome.route) { WelcomeScreen(navController) }
             composable(Screen.Registration.route) { RegistrationScreen(navController) }
 
-            composable(Screen.Feed.route) { Feed() }
+            composable(Screen.Feed.route) {
+                Feed(
+                    posts = feedPosts,
+                    onCreatePost = { navController.navigate(Screen.CreatePost.route) }
+                )
+            }
             composable(Screen.Events.route) { Events() }
             composable(Screen.Subscriptions.route) { Subscriptions() }
 
-
             composable(Screen.Profile.route) { Profile(navController) }
-
             composable(Screen.Education.route) { Education(navController) }
+
+            composable(Screen.CreatePost.route) {
+                CreatePostScreen(
+                    onCancel = { navController.popBackStack() },
+                    onSubmit = { post ->
+                        feedPosts.add(0, post) // добавить в начало ленты
+                        navController.popBackStack() // вернуться в ленту
+                        navController.navigate(Screen.Feed.route) {
+                            popUpTo(Screen.Welcome.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
         }
     }
 }
@@ -322,54 +392,12 @@ fun WelcomeScreen(navController: NavHostController) {
 
 
 @Composable
-fun Feed() {
+fun Feed(
+    posts: SnapshotStateList<FeedPost>,
+    onCreatePost: () -> Unit
+) {
     // Tab state: 0 – Подписки, 1 – Мои интересы
     var selectedTab by remember { mutableStateOf(0) }
-
-    val posts = remember {
-        listOf(
-            FeedPost(
-                id = "1",
-                title = "«МИКРОН» — открывает двери для студентов!",
-                subtitle = "Экскурсия по крупнейшему микроэлектронному производству России, знакомство с технологиями чипов и процессом фотолитографии.",
-                category = "#Экскурсия",
-                date = "24.10",
-                skills = "python, scratch",
-                difficulty = 2,
-                imageRes = R.drawable.hack1
-            ),
-            FeedPost(
-                id = "2",
-                title = "«Умные лифты будущего»",
-                subtitle = "Приглашаем проектировщиков, архитекторов и разработчиков на эксклюзивный воркшоп о трансформации лифтовой индустрии.",
-                category = "#Воркшоп",
-                date = "03.12",
-                skills = "Основы программирования, Arduino",
-                difficulty = 3,
-                imageRes = R.drawable.hack2
-            ),
-            FeedPost(
-                id = "3",
-                title = "Кабельный завод «Спецкабель»",
-                subtitle = "Погружение в мир современного производства: знакомство с работой инженеров и технологов и тем, как создаются сложные электроматериалы.",
-                category = "#Экскурсия",
-                date = "20.12",
-                skills = "python, scratch",
-                difficulty = 2,
-                imageRes = R.drawable.banner
-            ),
-            FeedPost(
-                id = "4",
-                title = "«Умная открытка» с чипом RFID/NFC",
-                subtitle = "Соберём интерактивную открытку, которая с помощью чипа передаст цифровое сообщение (видео, поздравление, ссылку) на смартфон.",
-                category = "#Проект",
-                date = "10.10",
-                skills = "Основы программирования",
-                difficulty = 3,
-                imageRes = R.drawable.internship
-            )
-        )
-    }
 
     val communities = remember {
         mutableStateListOf(
@@ -425,7 +453,7 @@ fun Feed() {
                 .fillMaxSize()
                 .background(BgGrey)
         ) {
-            item { FeedHeader(onAddClick = { /* TODO: добавить создание поста */ }) }
+            item { FeedHeader(onAddClick = onCreatePost) }
             item { FeedTabs(selectedTab = selectedTab, onSelect = { selectedTab = it }) }
 
             if (selectedTab == 0) {
@@ -521,7 +549,7 @@ private fun FeedTabs(selectedTab: Int, onSelect: (Int) -> Unit) {
     }
 }
 
-private data class FeedPost(
+data class FeedPost(
     val id: String,
     val title: String,
     val subtitle: String,
@@ -529,7 +557,8 @@ private data class FeedPost(
     val date: String,
     val skills: String,
     val difficulty: Int, // 0..5
-    val imageRes: Int
+    val imageRes: Int? = null,
+    val from: String? = null
 )
 
 @Composable
@@ -545,13 +574,25 @@ private fun FeedCard(post: FeedPost) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Верхняя строка: слева картинка, справа дата
             Row(modifier = Modifier.fillMaxWidth()) {
-                Image(
-                    painter = painterResource(id = post.imageRes),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(92.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
+                if (post.imageRes != null) {
+                    Image(
+                        painter = painterResource(id = post.imageRes),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFEDEDED)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("Без фото", fontSize = 12.sp, color = Color(0xFF6B6B6B))
+                    }
+                }
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -566,6 +607,10 @@ private fun FeedCard(post: FeedPost) {
 
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(text = post.title, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    if (!post.from.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(text = "от ${post.from}", fontSize = 12.sp, color = Color(0xFF5C5C5C))
+                    }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(text = post.subtitle, fontSize = 13.sp)
                 }
@@ -595,6 +640,130 @@ private fun FeedCard(post: FeedPost) {
                 ) {
                     Text("Зарегистрироваться", fontSize = 14.sp)
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CreatePostScreen(
+    onCancel: () -> Unit,
+    onSubmit: (FeedPost) -> Unit
+) {
+    var from by rememberSaveable { mutableStateOf("") } // клуб/организация (обязательное поле)
+    var title by rememberSaveable { mutableStateOf("") }
+    var subtitle by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("#Событие") }
+    var date by rememberSaveable { mutableStateOf("") }
+    var skills by rememberSaveable { mutableStateOf("") }
+    var difficulty by rememberSaveable { mutableStateOf(0f) }
+    val isValid = from.isNotBlank() && title.isNotBlank()
+
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Новый пост") },
+                navigationIcon = {
+                    IconButton(onClick = onCancel) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                }
+            )
+        }
+    ) { inner ->
+        Column(
+            modifier = Modifier
+                .padding(inner)
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            OutlinedTextField(
+                value = from,
+                onValueChange = { from = it },
+                singleLine = true,
+                label = { Text("Клуб или организация *") },
+                placeholder = { Text("Например, АО Микрон") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                singleLine = true,
+                label = { Text("Заголовок *") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = subtitle,
+                onValueChange = { subtitle = it },
+                label = { Text("Краткое описание") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = category,
+                onValueChange = { category = it },
+                singleLine = true,
+                label = { Text("Категория (тег)") },
+                placeholder = { Text("#Воркшоп / #Экскурсия / #Проект") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = date,
+                onValueChange = { date = it },
+                singleLine = true,
+                label = { Text("Дата") },
+                placeholder = { Text("например, 12.12") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = skills,
+                onValueChange = { skills = it },
+                singleLine = true,
+                label = { Text("Навыки") },
+                placeholder = { Text("Python, Arduino…") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Text("Сложность: ${difficulty.toInt()}/5", fontWeight = FontWeight.Medium)
+            Slider(
+                value = difficulty,
+                onValueChange = { difficulty = it },
+                valueRange = 0f..5f,
+                steps = 4
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Button(
+                onClick = {
+                    onSubmit(
+                        FeedPost(
+                            id = "new_${System.currentTimeMillis()}",
+                            title = title.trim(),
+                            subtitle = subtitle.trim(),
+                            category = if (category.isBlank()) "#Событие" else category.trim(),
+                            date = date.ifBlank { "-" },
+                            skills = skills.ifBlank { "-" },
+                            difficulty = difficulty.toInt().coerceIn(0, 5),
+                            imageRes = null, // пользовательские посты без картинки
+                            from = from.trim()
+                        )
+                    )
+                },
+                enabled = isValid,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BgOrange)
+            ) {
+                Text("Опубликовать", fontSize = 16.sp)
             }
         }
     }
@@ -721,10 +890,11 @@ fun Subscriptions() {
     // 0 – От организаций, 1 – От пользователей
     var selectedTab by remember { mutableStateOf(0) }
     var query by remember { mutableStateOf("") }
+    var showCreateDialog by remember { mutableStateOf(false) }
 
     // Данные клубов «От организаций»
     val orgClubs = remember {
-        listOf(
+        mutableStateListOf(
             Club(
                 id = "o1",
                 title = "Клуб робототехники",
@@ -760,9 +930,9 @@ fun Subscriptions() {
         )
     }
 
-    // Данные клубов «От пользователей» (примерные)
+    // Данные клубов «От пользователей»
     val userClubs = remember {
-        listOf(
+        mutableStateListOf(
             Club(
                 id = "u1",
                 title = "Фуллстек-джедаи",
@@ -773,7 +943,7 @@ fun Subscriptions() {
             ),
             Club(
                 id = "u2",
-                title = "Дизайн & Продукт",
+                title = "Дизайн &amp; Продукт",
                 from = "От пользователей • 2,1 тыс. участников",
                 description = "UI/UX, motion, JTBD и метрики — практикуемся и ревьюим кейсы.",
                 tag = "#Design",
@@ -783,30 +953,67 @@ fun Subscriptions() {
     }
 
     val currentList = if (selectedTab == 0) orgClubs else userClubs
-    val filtered = remember(query, currentList) {
-        if (query.isBlank()) currentList else currentList.filter { it.title.contains(query, ignoreCase = true) || it.tag.contains(query, ignoreCase = true) }
+    val filtered = if (query.isBlank()) currentList else currentList.filter {
+        it.title.contains(query, ignoreCase = true) || it.tag.contains(query, ignoreCase = true)
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(BgGrey)
-        ) {
-            item {
-                SubscriptionsHeader(
-                    query = query,
-                    onQueryChange = { query = it },
-                    onAddClick = { /* TODO: создать клуб */ }
+        Box(Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BgGrey)
+            ) {
+                item {
+                    SubscriptionsHeader(
+                        query = query,
+                        onQueryChange = { query = it },
+                        onAddClick = { showCreateDialog = true }
+                    )
+                }
+                item { SubscriptionsTabs(selected = selectedTab, onSelect = { selectedTab = it }) }
+
+                items(filtered, key = { it.id }) { club ->
+                    ClubCard(club = club, onOpen = { /* TODO: переход в карточку клуба */ })
+                }
+
+                item { Spacer(modifier = Modifier.height(24.dp)) }
+            }
+
+            if (showCreateDialog) {
+                CreateClubDialog(
+                    onDismiss = { showCreateDialog = false },
+                    onCreate = { isOrganization, yourName, entityName, activity, description ->
+                        val id = "custom_${System.currentTimeMillis()}"
+                        val tag = when {
+                            activity.isNotBlank() -> "#${activity}"
+                            isOrganization -> "#Организация"
+                            else -> "#Клуб"
+                        }
+                        val fromText = if (isOrganization) {
+                            "От ${entityName.ifBlank { yourName.ifBlank { "Организация" } }} • 0 участников"
+                        } else {
+                            "От пользователей • 0 участников"
+                        }
+                        val newClub = Club(
+                            id = id,
+                            title = entityName.ifBlank { "Без названия" },
+                            from = fromText,
+                            description = description.ifBlank { " " },
+                            tag = tag,
+                            bannerRes = null // без фотографии
+                        )
+                        if (isOrganization) {
+                            orgClubs.add(0, newClub)
+                            selectedTab = 0
+                        } else {
+                            userClubs.add(0, newClub)
+                            selectedTab = 1
+                        }
+                        showCreateDialog = false
+                    }
                 )
             }
-            item { SubscriptionsTabs(selected = selectedTab, onSelect = { selectedTab = it }) }
-
-            items(filtered, key = { it.id }) { club ->
-                ClubCard(club = club, onOpen = { /* TODO: переход в карточку клуба */ })
-            }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
     }
 }
@@ -898,8 +1105,9 @@ private data class Club(
     val from: String,
     val description: String,
     val tag: String,
-    val bannerRes: Int
+    val bannerRes: Int? = null
 )
+
 
 @Composable
 private fun ClubCard(
@@ -915,15 +1123,28 @@ private fun ClubCard(
             .background(Color.White)
     ) {
         Column {
-            Image(
-                painter = painterResource(id = club.bannerRes),
-                contentDescription = club.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(110.dp)
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-            )
+            if (club.bannerRes != null) {
+                Image(
+                    painter = painterResource(id = club.bannerRes),
+                    contentDescription = club.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .background(Color(0xFFEDEDED)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Без фото", color = Color(0xFF6B6B6B))
+                }
+            }
 
             Column(
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp)
@@ -958,6 +1179,160 @@ private fun ClubCard(
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(imageVector = Icons.Filled.ArrowForward, contentDescription = "Открыть", tint = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+private fun CreateClubDialog(
+    onDismiss: () -> Unit,
+    onCreate: (isOrganization: Boolean, yourName: String, entityName: String, activity: String, description: String) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            tonalElevation = 2.dp
+        ) {
+            var selected by remember { mutableStateOf(0) } // 0 – Клуб, 1 – Организация
+            var yourName by remember { mutableStateOf("") }
+            var entityName by remember { mutableStateOf("") }
+            var activity by remember { mutableStateOf("") }
+            var description by remember { mutableStateOf("") }
+
+            val isValid = entityName.isNotBlank()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .background(BgGrey)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                        .background(TopPanelPurple)
+                ) {
+                    Column(modifier = Modifier.align(Alignment.BottomStart)) {
+                        Text(
+                            text = if (selected == 0) "СОЗДАТЬ СВОЙ КЛУБ" else "СОЗДАТЬ ОРГАНИЗАЦИЮ",
+                            modifier = Modifier
+                                .padding(start = 20.dp, bottom = 10.dp),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // Подвкладки: Клуб / Организация
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BgGrey)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    val selectedColor = Color(0xFFDDEB87)
+                    val unselectedColor = Color(0xFFF1F2F6)
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (selected == 0) selectedColor else unselectedColor)
+                            .clickable { selected = 0 },
+                        contentAlignment = Alignment.Center
+                    ) { Text("Клуб", fontSize = 16.sp, fontWeight = if (selected == 0) FontWeight.SemiBold else FontWeight.Normal) }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(if (selected == 1) selectedColor else unselectedColor)
+                            .clickable { selected = 1 },
+                        contentAlignment = Alignment.Center
+                    ) { Text("Организация", fontSize = 16.sp, fontWeight = if (selected == 1) FontWeight.SemiBold else FontWeight.Normal) }
+                }
+
+                // Форма
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                        .border(1.dp, Color.Black, RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text("Введите имя", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    OutlinedTextField(
+                        value = yourName,
+                        onValueChange = { yourName = it },
+                        placeholder = { Text("Ваше имя") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(if (selected == 1) "Название организации" else "Название клуба", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    OutlinedTextField(
+                        value = entityName,
+                        onValueChange = { entityName = it },
+                        placeholder = { Text(if (selected == 1) "АО Микрон" else "Например, AI Club") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(if (selected == 1) "Сфера деятельности" else "Тематика клуба", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    OutlinedTextField(
+                        value = activity,
+                        onValueChange = { activity = it },
+                        placeholder = { Text(if (selected == 1) "Микроэлектроника" else "ML / Data / Роботы") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(if (selected == 1) "Описание организации" else "Описание клуба", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        placeholder = { Text("Коротко о миссии") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp)
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            onCreate(selected == 1, yourName.trim(), entityName.trim(), activity.trim(), description.trim())
+                        },
+                        enabled = isValid,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BgOrange)
+                    ) {
+                        Text("Создать", fontSize = 16.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Отмена")
                     }
                 }
             }
