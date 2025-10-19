@@ -1,15 +1,9 @@
 package com.example.composefinhack
 
-import android.R.attr.fontWeight
-import android.R.attr.name
-import android.R.attr.singleLine
 import android.R.attr.text
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-
-
 import android.os.Bundle
-import android.text.Layout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,15 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,11 +45,13 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.composefinhack.ui.theme.BgGrey
 import com.example.composefinhack.ui.theme.BgOrange
-import com.example.composefinhack.ui.theme.ButtonBlue
 import com.example.composefinhack.ui.theme.TextColor
 import com.example.composefinhack.ui.theme.TopPanelPurple
-import androidx.compose.ui.res.vectorResource
 import androidx.navigation.NavController
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,9 +75,6 @@ sealed class Screen(
     object Events : Screen("events", "Ивенты", Icons.Default.Event)
     object Subscriptions : Screen("subscriptions", "Подписки", Icons.Default.Subscriptions)
     object Profile : Screen("profile", "Профиль", Icons.Default.Person)
-
-    // Для экранов, которые не отображаются в bottom bar, иконку можно не указывать
-    object Anketa : Screen("anketa", "Анкета")
     object Education : Screen("education", "Образование")
 }
 
@@ -310,14 +299,10 @@ fun Feed() {
 @Preview
 @Composable
 fun Events() {
+    var query by remember { mutableStateOf("") }
+
     Box(modifier = Modifier.fillMaxSize()) {
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-        ) {
-
+        Column(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -325,18 +310,102 @@ fun Events() {
                     .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
                     .background(TopPanelPurple)
             ) {
-                Column(modifier=Modifier.align(Alignment.BottomStart))
-                {
+                Column(modifier = Modifier.align(Alignment.BottomStart)) {
                     Text(
-                        text = "КУДА ПОЙТИ\nПРОКАЧАТЬСЯ",
+                        text = "КУДА ПОЙТИ",
                         modifier = Modifier
-                            .padding(start = 20.dp, bottom = 30.dp),
+                            .padding(start = 10.dp, bottom = 3.dp),
                         fontSize = 35.sp,
                         fontWeight = FontWeight.Bold
                     )
 
-                }
+                    Text(
+                        text = "ПРОКАЧАТЬСЯ",
+                        modifier = Modifier
+                            .padding(start = 10.dp, bottom = 3.dp),
+                        fontSize = 35.sp,
+                        fontWeight = FontWeight.Bold
+                    )
 
+                    TextField(
+                        value = query, // <-- здесь должна быть та же переменная
+                        onValueChange = { query = it },
+                        placeholder = { Text("Найти событие или место") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                    )
+                }
+            }
+            Box(modifier = Modifier.fillMaxSize()
+                .background(BgGrey))
+            {
+                Column(){
+                    Text(
+                        text = "// СТАЖИРОВКИ",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 20.dp, top = 18.dp)
+                    )
+
+                    Image(
+                        painter = painterResource(id = R.drawable.internship),
+                        contentDescription = "Первая картинка",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(12.dp)
+                            )
+                    )
+
+                    Text(
+                        text = "// ХАКАТОНЫ",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 20.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, top=16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.hack1),
+                            contentDescription = "Первая картинка",
+                            modifier = Modifier
+                                .width(200.dp)
+                                .height(140.dp)
+
+                                .clip(RoundedCornerShape(12.dp)
+                                )
+                        )
+
+                        Image(
+                            painter = painterResource(id = R.drawable.hack2),
+                            contentDescription = "Вторая картинка",
+                            modifier = Modifier
+                                .width(160.dp)
+                                .height(140.dp)
+
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    }
+                    Image(
+                        painter = painterResource(id = R.drawable.banner),
+                        contentDescription = "Баннер",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(12.dp)
+                            )
+                    )
+
+                }
             }
         }
     }
