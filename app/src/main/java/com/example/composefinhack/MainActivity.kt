@@ -55,15 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,12 +69,15 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
 import com.example.composefinhack.ui.theme.BgGrey
 import com.example.composefinhack.ui.theme.BgOrange
-import com.example.composefinhack.ui.theme.ButtonBlue
 import com.example.composefinhack.ui.theme.TextColor
 import com.example.composefinhack.ui.theme.TopPanelPurple
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.navigation.NavController
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -111,9 +110,6 @@ sealed class Screen(
     object Events : Screen("events", "Ивенты", Icons.Default.Event)
     object Subscriptions : Screen("subscriptions", "Подписки", Icons.Default.Subscriptions)
     object Profile : Screen("profile", "Профиль", Icons.Default.Person)
-
-    // Для экранов, которые не отображаются в bottom bar, иконку можно не указывать
-    object Anketa : Screen("anketa", "Анкета")
     object Education : Screen("education", "Образование")
     object Registration : Screen("registration", "Регистрация")
     object CreatePost : Screen("create_post", "Создать пост")
