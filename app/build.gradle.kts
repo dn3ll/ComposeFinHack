@@ -57,6 +57,15 @@ dependencies {
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    implementation(platform("androidx.compose:compose-bom:2024.10.00"))
+    implementation("androidx.compose.runtime:runtime")
+    implementation("androidx.compose.runtime:runtime-saveable")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.6")
+
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
 
